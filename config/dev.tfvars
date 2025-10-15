@@ -4,7 +4,7 @@ auth0_client_id     = "gbp0gdTEONzgAOQmEZwN2iOER5TGTOYV"
 auth0_client_secret = "A_8C6h_jWkZ449l5_WQdzdW4kiZMAXr4sNuJFn7toM9DJLt-jmUs6NHWSCGLrLXc"
 
 
-#Test Deployment Devlopment
+#Test Deployment Development practice
 
 # Tenant Configuration
 tenant_friendly_name = "cdw"
