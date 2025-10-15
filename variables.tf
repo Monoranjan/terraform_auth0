@@ -1,34 +1,37 @@
+
+
+# =============================================================================
+# AUTHENTICATION & PROVIDER CONFIGURATION
+# =============================================================================
+
+variable "auth0_domain" {
+  description = "Auth0 tenant domain"
+  type        = string
+}
+
+variable "auth0_client_id" {
+  description = "Auth0 Management API client ID"
+  type        = string
+}
+
+variable "auth0_client_secret" {
+  description = "Auth0 Management API client secret"
+  type        = string
+  sensitive   = true
+}
+
+# =============================================================================
+# TENANT CONFIGURATION
+# =============================================================================
+
 variable "tenant_friendly_name" {
   description = "Friendly name for the Auth0 tenant"
   type        = string
+  default     = "My Auth0 Tenant"
 }
 
 variable "tenant_support_email" {
   description = "Support email for the Auth0 tenant"
-  type        = string
-}
-
-variable "smtp_host" {
-  description = "SMTP host for custom email provider"
-  type        = string
-}
-
-variable "smtp_port" {
-  description = "SMTP port for custom email provider"
-  type        = number
-}
-
-variable "smtp_user" {
-  description = "SMTP username for custom email provider"
-  type        = string
-}
-variable "smtp_pass" {
-  description = "SMTP password for custom email provider"
-  type        = string
-  sensitive   = true
-}
-variable "auth0_domain" {
-  description = "Auth0 tenant domain"
   type        = string
 }
 
@@ -44,25 +47,141 @@ variable "tenant_default_audience" {
   default     = ""
 }
 
-variable "auth0_client_id" {
-  description = "Auth0 Management API client ID"
+# =============================================================================
+# BRANDING CONFIGURATION
+# =============================================================================
+
+variable "logo_url" {
+  description = "Logo URL for Auth0 branding"
   type        = string
+  default     = null
 }
 
-variable "auth0_client_secret" {
-  description = "Auth0 Management API client secret"
+variable "primary_color" {
+  description = "Primary color for Auth0 branding"
   type        = string
-  sensitive   = true
+  default     = "#271957"
 }
 
-# Project Configuration
+variable "page_background_color" {
+  description = "Background color for Auth0 pages"
+  type        = string
+  default     = "f4f4f4"  # without # prefix
+}
+
+# =============================================================================
+# CUSTOM DOMAIN CONFIGURATION
+# =============================================================================
+
+variable "custom_domain_name" {
+  description = "Custom domain name for Auth0 tenant"
+  type        = string
+  default     = ""
+}
+
+variable "custom_domain_type" {
+  description = "Type of custom domain (auth0_managed_certs or self_managed_certs)"
+  type        = string
+  default     = "auth0_managed_certs"
+}
+
+# =============================================================================
+# ENVIRONMENT & PROJECT CONFIGURATION
+# =============================================================================
+
+variable "environment" {
+  description = "Environment name (dev, staging, prod)"
+  type        = string
+  default     = "dev"
+  
+  validation {
+    condition     = contains(["dev", "staging", "prod"], var.environment)
+    error_message = "Environment must be one of: dev, staging, prod."
+  }
+}
+
 variable "project_name" {
   description = "Name of the project"
   type        = string
   default     = "my-app"
 }
 
-# SPA Application Variables
+# =============================================================================
+# EMAIL/SMTP CONFIGURATION
+# =============================================================================
+
+variable "smtp_host" {
+  description = "SMTP host for custom email provider"
+  type        = string
+}
+
+variable "smtp_port" {
+  description = "SMTP port for custom email provider"
+  type        = number
+}
+
+variable "smtp_user" {
+  description = "SMTP username for custom email provider"
+  type        = string
+}
+
+variable "smtp_pass" {
+  description = "SMTP password for custom email provider"
+  type        = string
+  sensitive   = true
+}
+
+variable "smtp_secure" {
+  description = "Whether to use secure connection for SMTP"
+  type        = bool
+  default     = true
+}
+
+# =============================================================================
+# MODERN APPLICATIONS CONFIGURATION
+# =============================================================================
+
+variable "applications" {
+  description = "Configuration for multiple applications"
+  type = map(object({
+    name              = string
+    type              = string  # "spa" or "api"
+    description       = string
+    callbacks         = optional(list(string), [])
+    logout_urls       = optional(list(string), [])
+    allowed_origins   = optional(list(string), [])
+    web_origins       = optional(list(string), [])
+    api_identifier    = optional(string, "")
+    api_scopes        = optional(list(object({
+      name        = string
+      description = string
+    })), [])
+    required_roles    = optional(list(string), [])  # List of roles required for this application
+  }))
+  default = {}
+}
+
+# =============================================================================
+# ROLES CONFIGURATION
+# =============================================================================
+
+variable "roles" {
+  description = "Configuration for Auth0 roles"
+  type = map(object({
+    name        = string
+    description = string
+    permissions = list(object({
+      resource_server_identifier = string
+      name                      = string
+    }))
+  }))
+  default = {}
+}
+
+# =============================================================================
+# LEGACY SPA APPLICATION CONFIGURATION (Backwards Compatibility)
+# =============================================================================
+
 variable "spa_app_name" {
   description = "Name of the SPA application"
   type        = string
@@ -87,19 +206,6 @@ variable "spa_logout_urls" {
   ]
 }
 
-# Custom Domain Configuration
-#variable "custom_domain_name" {
-#  description = "Custom domain name for Auth0 tenant (e.g., auth.yourdomain.com)"
-#  type        = string
-#}
-#
-#variable "custom_domain_type" {
-#  description = "Type of custom domain verification (auth0_managed_certs or self_managed_certs)"
-#  type        = string
-#  default     = "auth0_managed_certs"
-#}
-
-
 variable "spa_allowed_origins" {
   description = "Allowed origins for SPA"
   type        = list(string)
@@ -118,14 +224,16 @@ variable "spa_web_origins" {
   ]
 }
 
-# API Application Variables
+# =============================================================================
+# LEGACY API APPLICATION CONFIGURATION (Backwards Compatibility)
+# =============================================================================
+
 variable "api_app_name" {
   description = "Name of the API application"
   type        = string
   default     = "My API App"
 }
 
-# Resource Server Variables
 variable "api_name" {
   description = "Name of the API resource server"
   type        = string
@@ -138,62 +246,56 @@ variable "api_identifier" {
   default     = "https://api.example.com"
 }
 
-# Database Connection Variables
+# =============================================================================
+# DATABASE CONNECTION CONFIGURATION
+# =============================================================================
+
 variable "database_connection_name" {
   description = "Name of the database connection"
   type        = string
   default     = "Username-Password-Authentication"
 }
 
-# Environment Variables
-variable "environment" {
-  description = "Environment name (dev, staging, prod)"
-  type        = string
-  default     = "dev"
+# =============================================================================
+# RESOURCE CREATION FLAGS
+# =============================================================================
+
+variable "skip_existing_applications" {
+  description = "Whether to skip creating applications that already exist"
+  type        = bool
+  default     = true
 }
 
-# Action Configuration Variables
+variable "skip_existing_resource_servers" {
+  description = "Whether to skip creating resource servers that already exist"
+  type        = bool
+  default     = true
+}
+
+variable "skip_existing_database" {
+  description = "Whether to skip creating database connection that already exists"
+  type        = bool
+  default     = true
+}
+
+variable "skip_existing_action" {
+  description = "Whether to skip creating action that already exists"
+  type        = bool
+  default     = true
+}
+
 variable "create_login_action" {
   description = "Whether to create the login action (set to false if action already exists)"
   type        = bool
   default     = true
 }
 
-# Attack Protection Variables
-variable "enable_enhanced_breach_detection" {
-  description = "Whether to use enhanced breached password detection (requires paid subscription)"
-  type        = bool
-  default     = false
-}
-
-variable "enable_breach_detection" {
-  description = "Whether to enable breached password detection at all (requires subscription)"
-  type        = bool
-  default     = false
-}
-
-# Email Configuration Variables
-variable "create_email_templates" {
-  description = "Whether to create email templates (requires properly configured email provider)"
-  type        = bool
-  default     = false
-}
-
-# Resource Server Variables
 variable "create_resource_server" {
   description = "Whether to create the resource server (set to false if it already exists)"
   type        = bool
   default     = true
 }
 
-# Log Stream Variables
-variable "create_log_stream" {
-  description = "Whether to create log streams (requires proper scopes and permissions)"
-  type        = bool
-  default     = false
-}
-
-# Role Configuration Variables
 variable "create_admin_role" {
   description = "Whether to create the admin role (set to false if it already exists)"
   type        = bool
@@ -206,22 +308,31 @@ variable "create_user_role" {
   default     = true
 }
 
-# Application Configuration Variables
-variable "applications" {
-  description = "Map of applications to create in Auth0"
-  type = map(object({
-    name        = string
-    type        = string
-    description = optional(string, "")
-    callbacks   = optional(list(string), [])
-    logout_urls = optional(list(string), [])
-    allowed_origins = optional(list(string), [])
-    web_origins = optional(list(string), [])
-    api_identifier = optional(string, "")
-    api_scopes = optional(list(object({
-      name        = string
-      description = string
-    })), [])
-  }))
-  default = {}
+variable "create_email_templates" {
+  description = "Whether to create email templates (requires properly configured email provider)"
+  type        = bool
+  default     = false
 }
+
+variable "create_log_stream" {
+  description = "Whether to create log streams (requires proper scopes and permissions)"
+  type        = bool
+  default     = false
+}
+
+# =============================================================================
+# SECURITY & ATTACK PROTECTION
+# =============================================================================
+
+variable "enable_enhanced_breach_detection" {
+  description = "Whether to use enhanced breached password detection (requires paid subscription)"
+  type        = bool
+  default     = false
+}
+
+variable "enable_breach_detection" {
+  description = "Whether to enable breached password detection at all (requires subscription)"
+  type        = bool
+  default     = false
+}
+

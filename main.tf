@@ -125,17 +125,7 @@ resource "auth0_email_template" "reset_password" {
   enabled         = true
 }
 
-# Add missing resource server resource
-resource "auth0_resource_server" "api" {
-  count      = var.create_resource_server ? 1 : 0
-  name       = var.api_name
-  identifier = var.api_identifier
-
-  allow_offline_access                            = true
-  token_lifetime                                 = 86400
-  token_lifetime_for_web                         = 7200
-  skip_consent_for_verifiable_first_party_clients = true
-}
+# Resource server for legacy API (will be consolidated with the one below)
 
 #Log Stream Configuration
 resource "auth0_log_stream" "splunk_cribl" {
@@ -169,14 +159,215 @@ resource "auth0_role" "user" {
   description = "Standard user role"
 }
 
+# Auth0 Action (Login Flow) - first instance removed, consolidated below
+
+# Multiple Auth0 Applications
+resource "auth0_client" "applications" {
+  for_each = var.skip_existing_applications ? {} : var.applications
+
+  name                = each.value.name
+  description         = each.value.description
+  app_type            = each.value.type == "spa" ? "spa" : "non_interactive"
+  callbacks           = each.value.type == "spa" ? each.value.callbacks : null
+  allowed_logout_urls = each.value.type == "spa" ? each.value.logout_urls : null
+  allowed_origins     = each.value.type == "spa" ? each.value.allowed_origins : null
+  web_origins         = each.value.type == "spa" ? each.value.web_origins : null
+  oidc_conformant     = true
+  
+  jwt_configuration {
+    lifetime_in_seconds = 36000
+    secret_encoded      = true
+    alg                 = "RS256"
+  }
+}
+
+# Resource Servers for API Applications
+resource "auth0_resource_server" "apis" {
+  for_each = var.skip_existing_resource_servers ? {} : {
+    for k, v in var.applications : k => v
+    if v.type == "api"
+  }
+
+  name        = each.value.name
+  identifier  = each.value.api_identifier
+  signing_alg = "RS256"
+
+  allow_offline_access = true
+  token_lifetime      = 86400
+  skip_consent_for_verifiable_first_party_clients = true
+
+  lifecycle {
+    ignore_changes = [
+      identifier,
+      name,
+      signing_alg,
+      allow_offline_access,
+      token_lifetime,
+      skip_consent_for_verifiable_first_party_clients
+    ]
+  }
+}
+
+# API Scopes
+resource "auth0_resource_server_scopes" "api_scopes_new" {
+  for_each = var.skip_existing_resource_servers ? {} : {
+    for k, v in var.applications : k => v
+    if v.type == "api" && length(v.api_scopes) > 0
+  }
+
+  resource_server_identifier = auth0_resource_server.apis[each.key].identifier
+
+  dynamic "scopes" {
+    for_each = each.value.api_scopes
+    content {
+      name        = scopes.value.name
+      description = scopes.value.description
+    }
+  }
+}
+
+# Roles
+resource "auth0_role" "roles" {
+  for_each = var.roles
+
+  name        = each.value.name
+  description = each.value.description
+}
+
+# Role Permissions
+resource "auth0_role_permission" "role_permissions" {
+  for_each = {
+    for entry in flatten([
+      for role_key, role in var.roles : [
+        for permission in role.permissions : {
+          role_key     = role_key
+          resource_server_identifier = permission.resource_server_identifier
+          permission_name = permission.name
+        }
+      ]
+    ]) : "${entry.role_key}-${entry.permission_name}" => entry
+  }
+
+  role_id = auth0_role.roles[each.value.role_key].id
+  resource_server_identifier = each.value.resource_server_identifier
+  permission = each.value.permission_name
+}
+
+# Legacy Auth0 Application (API/Backend) - maintained for backward compatibility
+resource "auth0_client" "api_app" {
+  count       = (var.api_app_name != "" && !var.skip_existing_applications) ? 1 : 0
+  name        = var.api_app_name
+  description = "API Application for ${var.project_name}"
+  app_type    = "non_interactive"
+  
+  jwt_configuration {
+    lifetime_in_seconds = 36000
+    secret_encoded      = true
+    alg                 = "RS256"
+  }
+}
+
+# Legacy Auth0 Resource Server (API) - maintained for backward compatibility
+resource "auth0_resource_server" "api" {
+  count = (var.api_name != "" && var.create_resource_server && !var.skip_existing_resource_servers) ? 1 : 0
+  
+  name       = var.api_name
+  identifier = var.api_identifier
+
+  allow_offline_access                            = true
+  token_lifetime                                 = 86400
+  token_lifetime_for_web                         = 7200
+  skip_consent_for_verifiable_first_party_clients = true
+
+  lifecycle {
+    ignore_changes = [
+      identifier,
+      name,
+      allow_offline_access,
+      token_lifetime,
+      token_lifetime_for_web,
+      skip_consent_for_verifiable_first_party_clients
+    ]
+  }
+}
+
+# Auth0 Client Grant (API permissions) - DISABLED
+# This legacy resource is disabled as it conflicts with the new applications structure
+# Client grants are managed through the applications configuration
+# resource "auth0_client_grant" "api_grant" {
+#   count     = 0  # Disabled
+#   client_id = ""
+#   audience  = ""
+#   
+#   scopes = [
+#     "read:users",
+#     "write:users"
+#   ]
+# }
+
+# Auth0 Connection (Database)
+resource "auth0_connection" "database" {
+  count    = var.skip_existing_database ? 0 : 1
+  name     = replace(lower("${var.project_name}-db"), " ", "-")
+  strategy = "auth0"
+  
+  options {
+    password_policy                = "good"
+    password_history {
+      enable = true
+      size   = 5
+    }
+    password_no_personal_info {
+      enable = true
+    }
+    password_dictionary {
+      enable     = true
+      dictionary = ["password", "admin", "123456"]
+    }
+    password_complexity_options {
+      min_length = 8
+    }
+    enabled_database_customization = true
+    brute_force_protection         = true
+    import_mode                    = false
+    disable_signup                 = false
+    requires_username              = false
+  }
+}
+
+# Enable connection for applications
+resource "auth0_connection_clients" "app_connections" {
+  count         = var.skip_existing_database ? 0 : 1
+  connection_id = auth0_connection.database[0].id
+  enabled_clients = [
+    for k, v in auth0_client.applications : v.id if v.app_type == "spa"
+  ]
+}
+
+# Role permissions are now handled by the auth0_role_permission resource with for_each
+
+# Check if we should skip creating actions based on variable
+locals {
+  skip_action_creation = var.skip_existing_action || !var.create_login_action
+}
+
 # Auth0 Action (Login Flow)
 resource "auth0_action" "login_action" {
-  count = var.create_login_action ? 1 : 0
-  name = "add-user-metadata"
+  count = !local.skip_action_creation ? 1 : 0
+  name  = "add-user-metadata"
   
   supported_triggers {
     id      = "post-login"
     version = "v3"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes = [
+      code,
+      dependencies,
+      runtime
+    ]
   }
   
   code = <<-EOT
@@ -199,68 +390,4 @@ resource "auth0_action" "login_action" {
   
   runtime = "node18"
   deploy  = true
-}
-
-# Applications Configuration
-# SPA and Regular Web Applications
-resource "auth0_client" "spa_apps" {
-  for_each = {
-    for name, config in var.applications : name => config
-    if config.type == "spa" || config.type == "regular_web"
-  }
-  
-  name        = each.value.name
-  description = each.value.description
-  app_type    = each.value.type == "spa" ? "spa" : "regular_web"
-  
-  callbacks   = each.value.callbacks
-  allowed_logout_urls = each.value.logout_urls
-  allowed_origins = each.value.allowed_origins
-  web_origins = each.value.web_origins
-  
-  # SPA specific settings
-  dynamic "jwt_configuration" {
-    for_each = each.value.type == "spa" ? [1] : []
-    content {
-      lifetime_in_seconds = 36000
-      secret_encoded     = false
-      alg               = "RS256"
-    }
-  }
-  
-  # Enable refresh token rotation for SPAs
-  dynamic "refresh_token" {
-    for_each = each.value.type == "spa" ? [1] : []
-    content {
-      expiration_type = "expiring"
-      leeway         = 0
-      token_lifetime = 2592000  # 30 days
-      rotation_type  = "rotating"
-    }
-  }
-}
-
-# API Applications (Resource Servers)
-resource "auth0_resource_server" "api_apps" {
-  for_each = {
-    for name, config in var.applications : name => config
-    if config.type == "api"
-  }
-  
-  name       = each.value.name
-  identifier = each.value.api_identifier
-  
-  allow_offline_access                            = true
-  token_lifetime                                 = 86400
-  token_lifetime_for_web                         = 7200
-  skip_consent_for_verifiable_first_party_clients = true
-  
-  # Add scopes
-  dynamic "scopes" {
-    for_each = each.value.api_scopes
-    content {
-      value       = scopes.value.name
-      description = scopes.value.description
-    }
-  }
 }

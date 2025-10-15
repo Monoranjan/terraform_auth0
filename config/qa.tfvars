@@ -1,7 +1,11 @@
+# Staging environment
+auth0_domain        = "dev-monoranjancic.us.auth0.com"
+auth0_client_id     = "gbp0gdTEONzgAOQmEZwN2iOER5TGTOYV"
+auth0_client_secret = "A_8C6h_jWkZ449l5_WQdzdW4kiZMAXr4sNuJFn7toM9DJLt-jmUs6NHWSCGLrLXc"
+
 # Tenant Configuration
-tenant_friendly_name = "CDW"
-tenant_support_email = "support@CDW.com"
-#custom_domain_name = "auth.CDW.com"
+tenant_friendly_name = "cdw"
+tenant_support_email = "support@cdw.com"
 
 environment = "qa"
 
@@ -20,9 +24,8 @@ create_resource_server = false
 create_admin_role = false
 create_user_role = false
 
-# Optional Features - set to true only if properly configured and subscription supports it
+# Optional Features - set to true only if properly configured
 create_email_templates = false
 create_log_stream = false
 enable_enhanced_breach_detection = false
 enable_breach_detection = false
-
