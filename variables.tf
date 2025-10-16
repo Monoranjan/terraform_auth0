@@ -354,11 +354,6 @@ variable "digital_spa_logout_urls" {
   default     = ["http://localhost:3000"]
 }
 
-variable "digital_spa_web_origins" {
-  description = "Allowed web origins for SPA"
-  type        = list(string)
-  default     = ["http://localhost:3000"]
-}
 
 variable "digital_spa_logo_uri" {
   description = "Logo URL for SPA"
