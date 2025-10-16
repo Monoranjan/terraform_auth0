@@ -1,6 +1,6 @@
 # Auth0 SPA Application
 resource "auth0_client" "spa_app" {
-  name         = var.spa_app_name
+  name         = var.spa_app_name_digital
   description  = "Single Page Application managed by Terraform"
   app_type     = "spa"   # <-- SPA type
   callbacks    = var.spa_callbacks

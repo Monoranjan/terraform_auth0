@@ -336,7 +336,7 @@ variable "enable_breach_detection" {
   default     = false
 }
 
-variable "spa_app_name" {
+variable "spa_app_name_digital" {
   description = "Name of the SPA application"
   type        = string
   default     = "Digital Customer"
