@@ -342,25 +342,25 @@ variable "spa_app_name_digital" {
   default     = "Digital Customer"
 }
 
-variable "spa_callbacks" {
+variable "digital_spa_callbacks" {
   description = "Allowed callback URLs for SPA"
   type        = list(string)
   default     = ["http://localhost:3000/callback"]
 }
 
-variable "spa_logout_urls" {
+variable "digital_spa_logout_urls" {
   description = "Allowed logout URLs for SPA"
   type        = list(string)
   default     = ["http://localhost:3000"]
 }
 
-variable "spa_web_origins" {
+variable "digital_spa_web_origins" {
   description = "Allowed web origins for SPA"
   type        = list(string)
   default     = ["http://localhost:3000"]
 }
 
-variable "spa_logo_uri" {
+variable "digital_spa_logo_uri" {
   description = "Logo URL for SPA"
   type        = string
   default     = "https://example.com/logo.png"
