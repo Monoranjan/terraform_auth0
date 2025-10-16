@@ -336,3 +336,32 @@ variable "enable_breach_detection" {
   default     = false
 }
 
+variable "spa_app_name" {
+  description = "Name of the SPA application"
+  type        = string
+  default     = "Digital Customer"
+}
+
+variable "spa_callbacks" {
+  description = "Allowed callback URLs for SPA"
+  type        = list(string)
+  default     = ["http://localhost:3000/callback"]
+}
+
+variable "spa_logout_urls" {
+  description = "Allowed logout URLs for SPA"
+  type        = list(string)
+  default     = ["http://localhost:3000"]
+}
+
+variable "spa_web_origins" {
+  description = "Allowed web origins for SPA"
+  type        = list(string)
+  default     = ["http://localhost:3000"]
+}
+
+variable "spa_logo_uri" {
+  description = "Logo URL for SPA"
+  type        = string
+  default     = "https://example.com/logo.png"
+}
